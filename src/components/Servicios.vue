@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h3>Servicios</h3>
-        <p>Administrá los servicios disponibles en Cerca.</p>
+        <p>Administrá los servicios registrados en Cerca.</p>
       </div>
       <button class="primary-button" @click="openModal()">+ Agregar servicio</button>
     </div>
@@ -14,20 +14,20 @@
           <thead>
             <tr>
               <th>ID</th>
+              <th>Usuario</th>
               <th>Mandados</th>
               <th>Compañía</th>
               <th>Cuidado</th>
-              <th>ID usuario</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="service in services" :key="service.id">
               <td>{{ service.id }}</td>
-              <td><span class="boolean">{{ service.mandados ? 'Sí' : 'No' }}</span></td>
-              <td><span class="boolean">{{ service.compania ? 'Sí' : 'No' }}</span></td>
-              <td><span class="boolean">{{ service.cuidado ? 'Sí' : 'No' }}</span></td>
               <td>{{ service.usuario }}</td>
+              <td>{{ service.mandados ? 'Sí' : 'No' }}</td>
+              <td>{{ service.compania ? 'Sí' : 'No' }}</td>
+              <td>{{ service.cuidado ? 'Sí' : 'No' }}</td>
               <td class="actions">
                 <button class="edit-button" @click="openModal(service)">Editar</button>
                 <button class="delete-button" @click="deleteService(service.id)">Eliminar</button>
@@ -38,34 +38,26 @@
       </div>
     </div>
 
+    <!-- Modal para Crear / Editar Servicio -->
     <div v-if="showModal" class="modal-background" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">
           <div>
             <h3>{{ editingId ? 'Editar servicio' : 'Nuevo servicio' }}</h3>
-            <p>Seleccioná los tipos de servicio.</p>
+            <p>Datos del servicio.</p>
           </div>
           <button class="close-button" @click="closeModal">×</button>
         </div>
 
         <form @submit.prevent="saveService">
-          <label class="check">
-            <input v-model="form.mandados" type="checkbox" />
-            Mandados
-          </label>
-
-          <label class="check">
-            <input v-model="form.compania" type="checkbox" />
-            Compañía
-          </label>
-
-          <label class="check">
-            <input v-model="form.cuidado" type="checkbox" />
-            Cuidado
-          </label>
-
-          <label>ID de usuario</label>
+          <label>Usuario</label>
           <input v-model="form.usuario" type="text" required />
+
+          <div class="checkbox-group" style="margin: 15px 0;">
+            <label><input type="checkbox" v-model="form.mandados" /> Mandados</label>
+            <label><input type="checkbox" v-model="form.compania" /> Compañía</label>
+            <label><input type="checkbox" v-model="form.cuidado" /> Cuidado</label>
+          </div>
 
           <div class="modal-actions">
             <button type="button" class="secondary-button" @click="closeModal">Cancelar</button>
@@ -80,16 +72,15 @@
 </template>
 
 <script>
+import { supabase } from '@/supabase'
+
 export default {
   name: 'Servicios',
   data() {
     return {
       showModal: false,
       editingId: null,
-      services: [
-        { id: 1, mandados: true, compania: true, cuidado: false, usuario: 'UUID-001' },
-        { id: 2, mandados: false, compania: true, cuidado: true, usuario: 'UUID-002' }
-      ],
+      services: [], // Se llena desde Supabase
       form: {
         mandados: false,
         compania: false,
@@ -98,10 +89,25 @@ export default {
       }
     }
   },
+  mounted() {
+    this.fetchServices()
+  },
   methods: {
+    // 1️⃣ SELECT: Obtener servicios
+    async fetchServices() {
+      const { data, error } = await supabase
+        .from('servicios')
+        .select('*')
+
+      if (error) {
+        console.error('Error al obtener servicios:', error.message)
+      } else {
+        this.services = data
+      }
+    },
+
     openModal(service = null) {
       this.showModal = true
-
       if (service) {
         this.editingId = service.id
         this.form = { ...service }
@@ -115,35 +121,66 @@ export default {
         }
       }
     },
+
     closeModal() {
       this.showModal = false
     },
-    saveService() {
-      if (this.editingId) {
-        const index = this.services.findIndex(item => item.id === this.editingId)
 
-        if (index !== -1) {
-          this.services[index] = {
-            ...this.services[index],
-            ...this.form
-          }
+    // 2️⃣ & 3️⃣ INSERT o UPDATE
+    async saveService() {
+      if (this.editingId) {
+        // UPDATE
+        const { error } = await supabase
+          .from('servicios')
+          .update({
+            mandados: this.form.mandados,
+            compania: this.form.compania,
+            cuidado: this.form.cuidado,
+            usuario: this.form.usuario
+          })
+          .eq('id', this.editingId)
+
+        if (error) {
+          console.error('Error al actualizar servicio:', error.message)
+        } else {
+          this.fetchServices()
         }
       } else {
-        const newId = this.services.length
-          ? Math.max(...this.services.map(item => item.id)) + 1
-          : 1
+        // INSERT
+        const { error } = await supabase
+          .from('servicios')
+          .insert([
+            {
+              mandados: this.form.mandados,
+              compania: this.form.compania,
+              cuidado: this.form.cuidado,
+              usuario: this.form.usuario
+            }
+          ])
 
-        this.services.push({
-          id: newId,
-          ...this.form
-        })
+        if (error) {
+          console.error('Error al crear servicio:', error.message)
+        } else {
+          this.fetchServices()
+        }
       }
 
       this.closeModal()
     },
-    deleteService(id) {
+
+    // 4️⃣ DELETE
+    async deleteService(id) {
       if (window.confirm('¿Seguro que querés eliminar este servicio?')) {
-        this.services = this.services.filter(item => item.id !== id)
+        const { error } = await supabase
+          .from('servicios')
+          .delete()
+          .eq('id', id)
+
+        if (error) {
+          console.error('Error al eliminar servicio:', error.message)
+        } else {
+          this.fetchServices()
+        }
       }
     }
   }

@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h3>Cuidadores</h3>
-        <p>Administrá los cuidadores registrados.</p>
+        <p>Administrá los cuidadores registrados en Cerca.</p>
       </div>
       <button class="primary-button" @click="openModal()">+ Agregar cuidador</button>
     </div>
@@ -20,7 +20,6 @@
               <th>ID</th>
               <th>Usuario</th>
               <th>Archivos</th>
-              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -28,8 +27,7 @@
             <tr v-for="caregiver in filteredCaregivers" :key="caregiver.id">
               <td>{{ caregiver.id }}</td>
               <td>{{ caregiver.usuario }}</td>
-              <td>{{ caregiver.archivos || 'Sin archivos' }}</td>
-              <td><span class="status active-status">Activo</span></td>
+              <td>{{ caregiver.archivos }}</td>
               <td class="actions">
                 <button class="edit-button" @click="openModal(caregiver)">Editar</button>
                 <button class="delete-button" @click="deleteCaregiver(caregiver.id)">Eliminar</button>
@@ -40,22 +38,23 @@
       </div>
     </div>
 
+    <!-- Modal para Crear / Editar Cuidador -->
     <div v-if="showModal" class="modal-background" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">
           <div>
             <h3>{{ editingId ? 'Editar cuidador' : 'Nuevo cuidador' }}</h3>
-            <p>Datos básicos del cuidador.</p>
+            <p>Datos del cuidador.</p>
           </div>
           <button class="close-button" @click="closeModal">×</button>
         </div>
 
         <form @submit.prevent="saveCaregiver">
-          <label>ID de usuario</label>
+          <label>Usuario</label>
           <input v-model="form.usuario" type="text" required />
 
           <label>Archivos</label>
-          <input v-model="form.archivos" type="text" placeholder="URL o referencia de archivos" />
+          <input v-model="form.archivos" type="text" placeholder="URL o nombre de archivo" />
 
           <div class="modal-actions">
             <button type="button" class="secondary-button" @click="closeModal">Cancelar</button>
@@ -70,6 +69,8 @@
 </template>
 
 <script>
+import { supabase } from '@/supabase'
+
 export default {
   name: 'Cuidadores',
   data() {
@@ -77,10 +78,7 @@ export default {
       search: '',
       showModal: false,
       editingId: null,
-      caregivers: [
-        { id: 1, usuario: 'UUID-001', archivos: 'documentacion.pdf' },
-        { id: 2, usuario: 'UUID-002', archivos: 'certificado.pdf' }
-      ],
+      caregivers: [], // Se llena desde Supabase
       form: {
         usuario: '',
         archivos: ''
@@ -95,10 +93,25 @@ export default {
       )
     }
   },
+  mounted() {
+    this.fetchCaregivers()
+  },
   methods: {
+    // 1️⃣ SELECT: Obtener cuidadores
+    async fetchCaregivers() {
+      const { data, error } = await supabase
+        .from('Cuidador')
+        .select('*')
+
+      if (error) {
+        console.error('Error al obtener cuidadores:', error.message)
+      } else {
+        this.caregivers = data
+      }
+    },
+
     openModal(caregiver = null) {
       this.showModal = true
-
       if (caregiver) {
         this.editingId = caregiver.id
         this.form = { ...caregiver }
@@ -107,36 +120,62 @@ export default {
         this.form = { usuario: '', archivos: '' }
       }
     },
+
     closeModal() {
       this.showModal = false
     },
-    saveCaregiver() {
+
+    // 2️⃣ & 3️⃣ INSERT o UPDATE
+    async saveCaregiver() {
       if (this.editingId) {
-        const index = this.caregivers.findIndex(item => item.id === this.editingId)
-        if (index !== -1) {
-          this.caregivers[index] = {
-            ...this.caregivers[index],
+        // UPDATE
+        const { error } = await supabase
+          .from('Cuidador')
+          .update({
             usuario: this.form.usuario,
             archivos: this.form.archivos
-          }
+          })
+          .eq('id', this.editingId)
+
+        if (error) {
+          console.error('Error al actualizar cuidador:', error.message)
+        } else {
+          this.fetchCaregivers()
         }
       } else {
-        const newId = this.caregivers.length
-          ? Math.max(...this.caregivers.map(item => item.id)) + 1
-          : 1
+        // INSERT
+        const { error } = await supabase
+          .from('Cuidador')
+          .insert([
+            {
+              usuario: this.form.usuario,
+              archivos: this.form.archivos
+            }
+          ])
 
-        this.caregivers.push({
-          id: newId,
-          usuario: this.form.usuario,
-          archivos: this.form.archivos
-        })
+        if (error) {
+          console.error('Error al crear cuidador:', error.message)
+        } else {
+          this.fetchCaregivers()
+        }
       }
 
       this.closeModal()
     },
-    deleteCaregiver(id) {
+
+    // 4️⃣ DELETE
+    async deleteCaregiver(id) {
       if (window.confirm('¿Seguro que querés eliminar este cuidador?')) {
-        this.caregivers = this.caregivers.filter(item => item.id !== id)
+        const { error } = await supabase
+          .from('Cuidador')
+          .delete()
+          .eq('id', id)
+
+        if (error) {
+          console.error('Error al eliminar cuidador:', error.message)
+        } else {
+          this.fetchCaregivers()
+        }
       }
     }
   }

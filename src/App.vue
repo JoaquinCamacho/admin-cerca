@@ -91,10 +91,18 @@ export default {
     }
   },
   methods: {
-    selectSection(section) {
-      this.currentSection = section
-      this.menuOpen = false
-    }
+  selectSection(section) {
+    this.currentSection = section
+    localStorage.setItem('activeSection', section) // Lo guardamos
+    this.menuOpen = false
   }
+},
+created() {
+  // Cuando la app arranca, revisa si había una sección guardada
+  const savedSection = localStorage.getItem('activeSection')
+  if (savedSection) {
+    this.currentSection = savedSection
+  }
+}
 }
 </script>

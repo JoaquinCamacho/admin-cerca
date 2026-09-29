@@ -63,9 +63,6 @@
           <label>Gmail</label>
           <input v-model="form.gmail" type="email" required />
 
-          <label>Estado</label>
-          <input v-model="form.estado" type="text" placeholder="Ej: Activo / Pendiente" />
-
           <div class="modal-actions">
             <button type="button" class="secondary-button" @click="closeModal">Cancelar</button>
             <button type="submit" class="primary-button">

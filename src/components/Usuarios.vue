@@ -42,7 +42,7 @@
       </div>
     </div>
 
-    <!-- Modal para Crear / Editar Usuario -->
+   
     <div v-if="showModal" class="modal-background" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">
@@ -88,7 +88,7 @@ export default {
       search: '',
       showModal: false,
       editingId: null,
-      users: [], // Se llenará con los datos reales de Supabase
+      users: [], 
       form: {
         nombre: '',
         apellido: '',

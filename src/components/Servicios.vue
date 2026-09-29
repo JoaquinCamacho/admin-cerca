@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <!-- Modal para Crear / Editar Servicio -->
+   
     <div v-if="showModal" class="modal-background" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">
@@ -80,7 +80,7 @@ export default {
     return {
       showModal: false,
       editingId: null,
-      services: [], // Se llena desde Supabase
+      services: [], 
       form: {
         mandados: false,
         compania: false,
@@ -93,7 +93,7 @@ export default {
     this.fetchServices()
   },
   methods: {
-    // 1️⃣ SELECT: Obtener servicios
+    // SELECT
     async fetchServices() {
       const { data, error } = await supabase
         .from('servicios')
@@ -126,7 +126,7 @@ export default {
       this.showModal = false
     },
 
-    // 2️⃣ & 3️⃣ INSERT o UPDATE
+    // INSERT o UPDATE
     async saveService() {
       if (this.editingId) {
         // UPDATE
@@ -168,7 +168,7 @@ export default {
       this.closeModal()
     },
 
-    // 4️⃣ DELETE
+    // DELETE
     async deleteService(id) {
       if (window.confirm('¿Seguro que querés eliminar este servicio?')) {
         const { error } = await supabase

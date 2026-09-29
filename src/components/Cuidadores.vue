@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <!-- Modal para Crear / Editar Cuidador -->
+  
     <div v-if="showModal" class="modal-background" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">
@@ -78,7 +78,7 @@ export default {
       search: '',
       showModal: false,
       editingId: null,
-      caregivers: [], // Se llena desde Supabase
+      caregivers: [], 
       form: {
         usuario: '',
         archivos: ''
@@ -97,7 +97,7 @@ export default {
     this.fetchCaregivers()
   },
   methods: {
-    // 1️⃣ SELECT: Obtener cuidadores
+    // SELECT
     async fetchCaregivers() {
       const { data, error } = await supabase
         .from('Cuidador')
@@ -125,7 +125,7 @@ export default {
       this.showModal = false
     },
 
-    // 2️⃣ & 3️⃣ INSERT o UPDATE
+    // INSERT o UPDATE
     async saveCaregiver() {
       if (this.editingId) {
         // UPDATE
@@ -163,7 +163,7 @@ export default {
       this.closeModal()
     },
 
-    // 4️⃣ DELETE
+    // DELETE
     async deleteCaregiver(id) {
       if (window.confirm('¿Seguro que querés eliminar este cuidador?')) {
         const { error } = await supabase

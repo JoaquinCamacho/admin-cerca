@@ -21,7 +21,7 @@
               <th>Nombre</th>
               <th>Apellido</th>
               <th>Gmail</th>
-              <th>Estado</th>
+              <th>Rol ID</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -31,7 +31,7 @@
               <td>{{ user.nombre }}</td>
               <td>{{ user.apellido }}</td>
               <td>{{ user.gmail }}</td>
-              <td><span class="status active-status">{{ user.estado || 'Activo' }}</span></td>
+              <td>{{ user.id_rol ?? 'Sin rol' }}</td>
               <td class="actions">
                 <button class="edit-button" @click="openModal(user)">Editar</button>
                 <button class="delete-button" @click="deleteUser(user.id)">Eliminar</button>
@@ -42,7 +42,7 @@
       </div>
     </div>
 
-   
+    <!-- Modal para Crear / Editar Usuario -->
     <div v-if="showModal" class="modal-background" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">
@@ -62,6 +62,15 @@
 
           <label>Gmail</label>
           <input v-model="form.gmail" type="email" required />
+
+          <label>Password</label>
+          <input v-model="form.password" type="password" required />
+
+          <label>Foto de Perfil (Opcional)</label>
+          <input v-model="form.foto_perfil" type="text" placeholder="URL o nombre de archivo" />
+
+          <label>ID Rol (Opcional)</label>
+          <input v-model.number="form.id_rol" type="number" placeholder="Ej: 1" />
 
           <div class="modal-actions">
             <button type="button" class="secondary-button" @click="closeModal">Cancelar</button>
@@ -85,12 +94,14 @@ export default {
       search: '',
       showModal: false,
       editingId: null,
-      users: [], 
+      users: [], // Se llena desde Supabase
       form: {
         nombre: '',
         apellido: '',
         gmail: '',
-      
+        password: '',
+        foto_perfil: '',
+        id_rol: ''
       }
     }
   },
@@ -106,7 +117,7 @@ export default {
     this.fetchUsers()
   },
   methods: {
-    // SELECT: Obtener todos los usuarios de Supabase
+    // 1️⃣ SELECT: Obtener usuarios
     async fetchUsers() {
       const { data, error } = await supabase
         .from('Usuarios')
@@ -121,7 +132,6 @@ export default {
 
     openModal(user = null) {
       this.showModal = true
-
       if (user) {
         this.editingId = user.id
         this.form = { ...user }
@@ -131,7 +141,9 @@ export default {
           nombre: '',
           apellido: '',
           gmail: '',
-         
+          password: '',
+          foto_perfil: '',
+          id_rol: ''
         }
       }
     },
@@ -140,17 +152,23 @@ export default {
       this.showModal = false
     },
 
+    // 2️⃣ & 3️⃣ INSERT o UPDATE
     async saveUser() {
+      // Preparamos los datos convirtiendo los vacíos a null para campos opcionales
+      const userData = {
+        nombre: this.form.nombre,
+        apellido: this.form.apellido,
+        gmail: this.form.gmail,
+        password: this.form.password,
+        foto_perfil: this.form.foto_perfil ? this.form.foto_perfil : null,
+        id_rol: this.form.id_rol ? Number(this.form.id_rol) : null
+      }
+
       if (this.editingId) {
-        // UPDATE: Actualizar usuario existente en Supabase
+        // UPDATE
         const { error } = await supabase
           .from('Usuarios')
-          .update({
-            nombre: this.form.nombre,
-            apellido: this.form.apellido,
-            gmail: this.form.gmail,
-            
-          })
+          .update(userData)
           .eq('id', this.editingId)
 
         if (error) {
@@ -159,17 +177,10 @@ export default {
           this.fetchUsers()
         }
       } else {
-        // INSERT: Crear nuevo usuario en Supabase
+        // INSERT
         const { error } = await supabase
           .from('Usuarios')
-          .insert([
-            {
-              nombre: this.form.nombre,
-              apellido: this.form.apellido,
-              gmail: this.form.gmail,
-              
-            }
-          ])
+          .insert([userData])
 
         if (error) {
           console.error('Error al crear usuario:', error.message)
@@ -181,9 +192,9 @@ export default {
       this.closeModal()
     },
 
+    // 4️⃣ DELETE
     async deleteUser(id) {
       if (window.confirm('¿Seguro que querés eliminar este usuario?')) {
-        // DELETE: Eliminar usuario en Supabase
         const { error } = await supabase
           .from('Usuarios')
           .delete()

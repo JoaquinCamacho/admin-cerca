@@ -79,7 +79,7 @@
 </template>
 
 <script>
-import { supabase } from '@/supabase'
+import { supabase } from '../supabase'
 
 export default {
   name: 'Usuarios',

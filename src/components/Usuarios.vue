@@ -69,8 +69,12 @@
           <label>Foto de Perfil (Opcional)</label>
           <input v-model="form.foto_perfil" type="text" placeholder="URL o nombre de archivo" />
 
-          <label>ID Rol (Opcional)</label>
-          <input v-model.number="form.id_rol" type="number" placeholder="Ej: 1" />
+          <label>Rol del usuario</label>
+          <select v-model.number="form.id_rol">
+            <option value="">Sin rol / Ninguno</option>
+            <option :value="1">Cliente (ID: 1)</option>
+            <option :value="2">Cuidador (ID: 2)</option>
+          </select>
 
           <div class="modal-actions">
             <button type="button" class="secondary-button" @click="closeModal">Cancelar</button>
@@ -94,7 +98,7 @@ export default {
       search: '',
       showModal: false,
       editingId: null,
-      users: [], // Se llena desde Supabase
+      users: [],
       form: {
         nombre: '',
         apellido: '',
@@ -117,12 +121,8 @@ export default {
     this.fetchUsers()
   },
   methods: {
-    // 1️⃣ SELECT: Obtener usuarios
     async fetchUsers() {
-      const { data, error } = await supabase
-        .from('Usuarios')
-        .select('*')
-
+      const { data, error } = await supabase.from('Usuarios').select('*')
       if (error) {
         console.error('Error al obtener usuarios:', error.message)
       } else {
@@ -152,9 +152,7 @@ export default {
       this.showModal = false
     },
 
-    // 2️⃣ & 3️⃣ INSERT o UPDATE
     async saveUser() {
-      // Preparamos los datos convirtiendo los vacíos a null para campos opcionales
       const userData = {
         nombre: this.form.nombre,
         apellido: this.form.apellido,
@@ -165,7 +163,6 @@ export default {
       }
 
       if (this.editingId) {
-        // UPDATE
         const { error } = await supabase
           .from('Usuarios')
           .update(userData)
@@ -177,7 +174,6 @@ export default {
           this.fetchUsers()
         }
       } else {
-        // INSERT
         const { error } = await supabase
           .from('Usuarios')
           .insert([userData])
@@ -192,14 +188,9 @@ export default {
       this.closeModal()
     },
 
-    // 4️⃣ DELETE
     async deleteUser(id) {
       if (window.confirm('¿Seguro que querés eliminar este usuario?')) {
-        const { error } = await supabase
-          .from('Usuarios')
-          .delete()
-          .eq('id', id)
-
+        const { error } = await supabase.from('Usuarios').delete().eq('id', id)
         if (error) {
           console.error('Error al eliminar usuario:', error.message)
         } else {

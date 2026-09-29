@@ -90,7 +90,7 @@ export default {
         nombre: '',
         apellido: '',
         gmail: '',
-        estado: 'Activo'
+      
       }
     }
   },
@@ -131,7 +131,7 @@ export default {
           nombre: '',
           apellido: '',
           gmail: '',
-          estado: 'Activo'
+         
         }
       }
     },
@@ -149,7 +149,7 @@ export default {
             nombre: this.form.nombre,
             apellido: this.form.apellido,
             gmail: this.form.gmail,
-            estado: this.form.estado
+            
           })
           .eq('id', this.editingId)
 
@@ -167,7 +167,7 @@ export default {
               nombre: this.form.nombre,
               apellido: this.form.apellido,
               gmail: this.form.gmail,
-              estado: this.form.estado
+              
             }
           ])
 

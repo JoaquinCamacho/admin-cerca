@@ -50,8 +50,13 @@
         </div>
 
         <form @submit.prevent="saveCuidador">
-          <label>ID Usuario</label>
-          <input v-model.number="form.id_usuario" type="number" placeholder="Ej: ID del usuario registrado" required />
+          <label>Seleccionar Usuario</label>
+          <select v-model.number="form.id_usuario" required>
+            <option disabled value="">Selecciona un usuario registrado</option>
+            <option v-for="user in usersList" :key="user.id" :value="user.id">
+              {{ user.nombre }} {{ user.apellido }} (ID: {{ user.id }})
+            </option>
+          </select>
 
           <label>Archivo (Opcional)</label>
           <input v-model="form.archivo" type="text" placeholder="URL o nombre del archivo..." />
@@ -79,6 +84,7 @@ export default {
       showModal: false,
       editingId: null,
       cuidadores: [],
+      usersList: [],
       form: {
         id_usuario: '',
         archivo: ''
@@ -95,12 +101,19 @@ export default {
   },
   mounted() {
     this.fetchCuidadores()
+    this.fetchUsers()
   },
   methods: {
     async fetchCuidadores() {
       const { data, error } = await supabase.from('Cuidador').select('*')
       if (error) console.error('Error al obtener cuidadores:', error.message)
       else this.cuidadores = data
+    },
+
+    async fetchUsers() {
+      const { data, error } = await supabase.from('Usuarios').select('*')
+      if (error) console.error('Error al obtener usuarios:', error.message)
+      else this.usersList = data
     },
 
     openModal(cuidador = null) {
@@ -138,12 +151,26 @@ export default {
     },
 
     async deleteCuidador(id) {
-      if (window.confirm('¿Seguro que querés eliminar este cuidador?')) {
-        const { error } = await supabase.from('Cuidador').delete().eq('id', id)
-        if (error) console.error('Error al eliminar cuidador:', error.message)
-        else this.fetchCuidadores()
+      if (!window.confirm('¿Seguro que querés eliminar este cuidador?')) return;
+
+      console.log("Ejecutando borrado para ID:", id);
+
+      // Agregamos .select() para ver si Supabase realmente eliminó la fila
+      const { data, error } = await supabase.from('Cuidador').delete().eq('id', id).select();
+
+      console.log("Resultado detallado con select:", { data, error });
+
+      if (error) {
+        console.error('Error al eliminar:', error.message);
+        alert('Error: ' + error.message);
+      } else if (!data || data.length === 0) {
+        alert('No se pudo borrar. Es muy probable que las Políticas de Seguridad (RLS) de Supabase estén bloqueando la eliminación.');
+      } else {
+        console.log("Eliminado con éxito:", data);
+        this.fetchCuidadores();
       }
     }
-  }
+    }
+  
 }
 </script>

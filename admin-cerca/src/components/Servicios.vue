@@ -27,9 +27,9 @@
           <tbody>
             <tr v-for="servicio in filteredServicios" :key="servicio.id">
               <td>{{ servicio.id }}</td>
-              <td>{{ servicio.mandados ?? 'N/D' }}</td>
-              <td>{{ servicio.compania ?? 'N/D' }}</td>
-              <td>{{ servicio.cuidado ?? 'N/D' }}</td>
+              <td>{{ servicio.mandados ? servicio.mandados : 'N/D' }}</td>
+              <td>{{ servicio.compania ? servicio.compania : 'N/D' }}</td>
+              <td>{{ servicio.cuidado ? servicio.cuidado : 'N/D' }}</td>
               <td class="actions">
                 <button class="edit-button" @click="openModal(servicio)">Editar</button>
                 <button class="delete-button" @click="deleteServicio(servicio.id)">Eliminar</button>
@@ -93,12 +93,15 @@ export default {
   },
   computed: {
     filteredServicios() {
-      const text = this.search.toLowerCase()
-      return this.servicios.filter(s =>
-        String(s.mandados || '').toLowerCase().includes(text) ||
-        String(s.compania || '').toLowerCase().includes(text) ||
-        String(s.cuidado || '').toLowerCase().includes(text)
-      )
+      const texto = this.search.toLowerCase()
+      
+      return this.servicios.filter(servicio => {
+        const mandados = String(servicio.mandados).toLowerCase()
+        const compania = String(servicio.compania).toLowerCase()
+        const cuidado = String(servicio.cuidado).toLowerCase()
+
+        return mandados.includes(texto) || compania.includes(texto) || cuidado.includes(texto)
+      })
     }
   },
   mounted() {
@@ -106,19 +109,28 @@ export default {
   },
   methods: {
     async fetchServicios() {
-      const { data, error } = await supabase.from('servicios').select('*')
-      if (error) console.error('Error al obtener servicios:', error.message)
-      else this.servicios = data
+      const respuesta = await supabase.from('servicios').select('*')
+      
+      if (respuesta.error) {
+        console.error('Error al obtener servicios:', respuesta.error.message)
+      } else {
+        this.servicios = respuesta.data
+      }
     },
 
     openModal(servicio = null) {
       this.showModal = true
+
       if (servicio) {
         this.editingId = servicio.id
-        this.form = { ...servicio }
+        this.form.mandados = servicio.mandados
+        this.form.compania = servicio.compania
+        this.form.cuidado = servicio.cuidado
       } else {
         this.editingId = null
-        this.form = { mandados: '', compania: '', cuidado: '' }
+        this.form.mandados = ''
+        this.form.compania = ''
+        this.form.cuidado = ''
       }
     },
 
@@ -127,25 +139,32 @@ export default {
     },
 
     async saveServicio() {
-      const dataToSave = {
-        mandados: this.form.mandados || null,
-        compania: this.form.compania || null,
-        cuidado: this.form.cuidado || null
+      const datosAGuardar = {
+        mandados: this.form.mandados,
+        compania: this.form.compania,
+        cuidado: this.form.cuidado
       }
 
       if (this.editingId) {
-        const { error } = await supabase.from('servicios').update(dataToSave).eq('id', this.editingId)
-        if (error) {
-          console.error('Error al actualizar servicio:', error.message)
-          alert('Error: ' + error.message)
+        // Actualizar servicio existente
+        const respuesta = await supabase
+          .from('servicios')
+          .update(datosAGuardar)
+          .eq('id', this.editingId)
+
+        if (respuesta.error) {
+          alert('Error: ' + respuesta.error.message)
         } else {
           this.fetchServicios()
         }
       } else {
-        const { error } = await supabase.from('servicios').insert([dataToSave])
-        if (error) {
-          console.error('Error al crear servicio:', error.message)
-          alert('Error: ' + error.message)
+        // Crear nuevo servicio
+        const respuesta = await supabase
+          .from('servicios')
+          .insert([datosAGuardar])
+
+        if (respuesta.error) {
+          alert('Error: ' + respuesta.error.message)
         } else {
           this.fetchServicios()
         }
@@ -155,17 +174,22 @@ export default {
     },
 
     async deleteServicio(id) {
-      if (!window.confirm('¿Seguro que querés eliminar este servicio?')) return
+      const confirmar = window.confirm('¿Seguro que querés eliminar este servicio?')
+      
+      if (confirmar) {
+        const respuesta = await supabase
+          .from('servicios')
+          .delete()
+          .eq('id', id)
+          .select()
 
-      const { data, error } = await supabase.from('servicios').delete().eq('id', id).select()
-
-      if (error) {
-        console.error('Error al eliminar servicio:', error.message)
-        alert('Error: ' + error.message)
-      } else if (!data || data.length === 0) {
-        alert('No se pudo borrar. Verifica las Políticas de Seguridad (RLS) en Supabase para la tabla "servicios".')
-      } else {
-        this.fetchServicios()
+        if (respuesta.error) {
+          alert('Error: ' + respuesta.error.message)
+        } else if (!respuesta.data || respuesta.data.length === 0) {
+          alert('No se pudo borrar. Revisa los permisos RLS en Supabase.')
+        } else {
+          this.fetchServicios()
+        }
       }
     }
   }

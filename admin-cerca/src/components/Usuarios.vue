@@ -31,7 +31,7 @@
               <td>{{ user.nombre }}</td>
               <td>{{ user.apellido }}</td>
               <td>{{ user.gmail }}</td>
-              <td>{{ user.id_rol ?? 'Sin rol' }}</td>
+              <td>{{ user.id_rol ? user.id_rol : 'Sin rol' }}</td>
               <td class="actions">
                 <button class="edit-button" @click="openModal(user)">Editar</button>
                 <button class="delete-button" @click="deleteUser(user.id)">Eliminar</button>
@@ -111,10 +111,11 @@ export default {
   },
   computed: {
     filteredUsers() {
-      const text = this.search.toLowerCase()
-      return this.users.filter(user =>
-        `${user.nombre} ${user.apellido} ${user.gmail}`.toLowerCase().includes(text)
-      )
+      const texto = this.search.toLowerCase()
+      return this.users.filter(user => {
+        const nombreCompleto = `${user.nombre} ${user.apellido} ${user.gmail}`.toLowerCase()
+        return nombreCompleto.includes(texto)
+      })
     }
   },
   mounted() {
@@ -122,11 +123,11 @@ export default {
   },
   methods: {
     async fetchUsers() {
-      const { data, error } = await supabase.from('Usuarios').select('*')
-      if (error) {
-        console.error('Error al obtener usuarios:', error.message)
+      const respuesta = await supabase.from('Usuarios').select('*')
+      if (respuesta.error) {
+        console.error('Error al obtener usuarios:', respuesta.error.message)
       } else {
-        this.users = data
+        this.users = respuesta.data
       }
     },
 
@@ -134,17 +135,20 @@ export default {
       this.showModal = true
       if (user) {
         this.editingId = user.id
-        this.form = { ...user }
+        this.form.nombre = user.nombre
+        this.form.apellido = user.apellido
+        this.form.gmail = user.gmail
+        this.form.password = user.password
+        this.form.foto_perfil = user.foto_perfil
+        this.form.id_rol = user.id_rol
       } else {
         this.editingId = null
-        this.form = {
-          nombre: '',
-          apellido: '',
-          gmail: '',
-          password: '',
-          foto_perfil: '',
-          id_rol: ''
-        }
+        this.form.nombre = ''
+        this.form.apellido = ''
+        this.form.gmail = ''
+        this.form.password = ''
+        this.form.foto_perfil = ''
+        this.form.id_rol = ''
       }
     },
 
@@ -153,7 +157,7 @@ export default {
     },
 
     async saveUser() {
-      const userData = {
+      const datosUsuario = {
         nombre: this.form.nombre,
         apellido: this.form.apellido,
         gmail: this.form.gmail,
@@ -163,24 +167,49 @@ export default {
       }
 
       if (this.editingId) {
-        const { error } = await supabase
+        const respuesta = await supabase
           .from('Usuarios')
-          .update(userData)
+          .update(datosUsuario)
           .eq('id', this.editingId)
 
-        if (error) {
-          console.error('Error al actualizar usuario:', error.message)
+        if (respuesta.error) {
+          alert('Error al actualizar usuario: ' + respuesta.error.message)
         } else {
           this.fetchUsers()
         }
       } else {
-        const { error } = await supabase
+        // Al crear un nuevo usuario, pedimos que nos devuelva la fila creada (.select())
+        const respuesta = await supabase
           .from('Usuarios')
-          .insert([userData])
+          .insert([datosUsuario])
+          .select()
 
-        if (error) {
-          console.error('Error al crear usuario:', error.message)
+        if (respuesta.error) {
+          alert('Error al crear usuario: ' + respuesta.error.message)
         } else {
+          const nuevoUsuario = respuesta.data[0]
+
+          // AUTO-CARGA SEGÚN ROL:
+          if (nuevoUsuario.id_rol === 1) {
+            // Si es Cliente (ID 1), creamos su registro en la tabla Cliente
+            const respCliente = await supabase
+              .from('Cliente')
+              .insert([{ id_usuario: nuevoUsuario.id }])
+
+            if (respCliente.error) {
+              console.error('Error al vincular en tabla Cliente:', respCliente.error.message)
+            }
+          } else if (nuevoUsuario.id_rol === 2) {
+            // Si es Cuidador (ID 2), creamos su registro en la tabla Cuidador
+            const respCuidador = await supabase
+              .from('Cuidador')
+              .insert([{ id_usuario: nuevoUsuario.id }])
+
+            if (respCuidador.error) {
+              console.error('Error al vincular en tabla Cuidador:', respCuidador.error.message)
+            }
+          }
+
           this.fetchUsers()
         }
       }
@@ -189,10 +218,11 @@ export default {
     },
 
     async deleteUser(id) {
-      if (window.confirm('¿Seguro que querés eliminar este usuario?')) {
-        const { error } = await supabase.from('Usuarios').delete().eq('id', id)
-        if (error) {
-          console.error('Error al eliminar usuario:', error.message)
+      const confirmar = window.confirm('¿Seguro que querés eliminar este usuario?')
+      if (confirmar) {
+        const respuesta = await supabase.from('Usuarios').delete().eq('id', id).select()
+        if (respuesta.error) {
+          alert('Error al eliminar usuario: ' + respuesta.error.message)
         } else {
           this.fetchUsers()
         }

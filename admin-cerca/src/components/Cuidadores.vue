@@ -27,7 +27,7 @@
             <tr v-for="cuidador in filteredCuidadores" :key="cuidador.id">
               <td>{{ cuidador.id }}</td>
               <td>{{ cuidador.id_usuario }}</td>
-              <td>{{ cuidador.archivo ? cuidador.archivo : 'Sin archivo' }}</td>
+              <td>{{ cuidador.archivo ?? 'Sin archivo' }}</td>
               <td class="actions">
                 <button class="edit-button" @click="openModal(cuidador)">Editar</button>
                 <button class="delete-button" @click="deleteCuidador(cuidador.id)">Eliminar</button>
@@ -93,12 +93,10 @@ export default {
   },
   computed: {
     filteredCuidadores() {
-      const texto = this.search.toLowerCase()
-
-      return this.cuidadores.filter(cuidador => {
-        const idUsuario = String(cuidador.id_usuario).toLowerCase()
-        return idUsuario.includes(texto)
-      })
+      const text = this.search.toLowerCase()
+      return this.cuidadores.filter(c =>
+        String(c.id_usuario).toLowerCase().includes(text)
+      )
     }
   },
   mounted() {
@@ -107,36 +105,25 @@ export default {
   },
   methods: {
     async fetchCuidadores() {
-      const respuesta = await supabase.from('Cuidador').select('*')
-
-      if (respuesta.error) {
-        console.error('Error al obtener cuidadores:', respuesta.error.message)
-      } else {
-        this.cuidadores = respuesta.data
-      }
+      const { data, error } = await supabase.from('Cuidador').select('*')
+      if (error) console.error('Error al obtener cuidadores:', error.message)
+      else this.cuidadores = data
     },
 
     async fetchUsers() {
-      const respuesta = await supabase.from('Usuarios').select('*')
-
-      if (respuesta.error) {
-        console.error('Error al obtener usuarios:', respuesta.error.message)
-      } else {
-        this.usersList = respuesta.data
-      }
+      const { data, error } = await supabase.from('Usuarios').select('*')
+      if (error) console.error('Error al obtener usuarios:', error.message)
+      else this.usersList = data
     },
 
     openModal(cuidador = null) {
       this.showModal = true
-
       if (cuidador) {
         this.editingId = cuidador.id
-        this.form.id_usuario = cuidador.id_usuario
-        this.form.archivo = cuidador.archivo
+        this.form = { ...cuidador }
       } else {
         this.editingId = null
-        this.form.id_usuario = ''
-        this.form.archivo = ''
+        this.form = { id_usuario: '', archivo: '' }
       }
     },
 
@@ -145,53 +132,30 @@ export default {
     },
 
     async saveCuidador() {
-      const datosAGuardar = {
+      const dataToSave = {
         id_usuario: Number(this.form.id_usuario),
         archivo: this.form.archivo ? this.form.archivo : null
       }
 
       if (this.editingId) {
-        // Actualizar cuidador
-        const respuesta = await supabase
-          .from('Cuidador')
-          .update(datosAGuardar)
-          .eq('id', this.editingId)
-
-        if (respuesta.error) {
-          alert('Error: ' + respuesta.error.message)
-        } else {
-          this.fetchCuidadores()
-        }
+        const { error } = await supabase.from('Cuidador').update(dataToSave).eq('id', this.editingId)
+        if (error) console.error('Error al actualizar cuidador:', error.message)
+        else this.fetchCuidadores()
       } else {
-        // Crear nuevo cuidador
-        const respuesta = await supabase
-          .from('Cuidador')
-          .insert([datosAGuardar])
-
-        if (respuesta.error) {
-          alert('Error: ' + respuesta.error.message)
-        } else {
-          this.fetchCuidadores()
-        }
+        const { error } = await supabase.from('Cuidador').insert([dataToSave])
+        if (error) console.error('Error al crear cuidador:', error.message)
+        else this.fetchCuidadores()
       }
 
       this.closeModal()
     },
 
     async deleteCuidador(id) {
-      const confirmar = window.confirm('¿Seguro que querés eliminar este cuidador?')
-
-      if (confirmar) {
-        const respuesta = await supabase
-          .from('Cuidador')
-          .delete()
-          .eq('id', id)
-          .select()
-
-        if (respuesta.error) {
-          alert('Error: ' + respuesta.error.message)
-        } else if (!respuesta.data || respuesta.data.length === 0) {
-          alert('No se pudo borrar. Revisa las Políticas de Seguridad (RLS) en Supabase.')
+      if (window.confirm('¿Seguro que querés eliminar este cuidador?')) {
+        const { data, error } = await supabase.from('Cuidador').delete().eq('id', id)
+        if (error) {
+          console.error('Error al eliminar cuidador:', error.message)
+          alert('No se pudo eliminar: ' + error.message)
         } else {
           this.fetchCuidadores()
         }

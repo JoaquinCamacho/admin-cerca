@@ -5,6 +5,7 @@ import Dashboard from '@/components/Dashboard.vue'
 import Usuarios from '@/components/Usuarios.vue'
 import Cuidadores from '@/components/Cuidadores.vue'
 import Servicios from '@/components/Servicios.vue'
+import Clientes from '@/components/Clientes.vue' // <-- 1. Importamos la vista de clientes
 
 const routes = [
   {
@@ -21,6 +22,11 @@ const routes = [
     path: '/cuidadores',
     name: 'Cuidadores',
     component: Cuidadores
+  },
+  {
+    path: '/clientes',
+    name: 'Clientes', // <-- 2. Agregamos la ruta de clientes
+    component: Clientes
   },
   {
     path: '/servicios',

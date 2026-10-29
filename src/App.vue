@@ -10,15 +10,60 @@
       </div>
 
       <nav class="nav">
+        <!-- Dashboard / Inicio -->
         <button
-          v-for="item in menu"
-          :key="item.id"
           class="nav-item"
-          :class="{ active: currentSection === item.id }"
-          @click="selectSection(item.id)"
+          :class="{ active: currentSection === 'dashboard' }"
+          @click="selectSection('dashboard')"
         >
-          <span class="nav-icon">{{ item.icon }}</span>
-          <span>{{ item.label }}</span>
+          <span class="nav-icon">⌂</span>
+          <span>Inicio</span>
+        </button>
+
+        <!-- Pestaña Usuarios con Desplegable -->
+        <div class="nav-group">
+          <button class="nav-item nav-parent" @click="toggleSubmenu">
+            <div class="nav-label-box">
+              <span class="nav-icon">👥</span>
+              <span>Usuarios</span>
+            </div>
+            <span class="arrow-icon">{{ showSubmenu ? '▾' : '▸' }}</span>
+          </button>
+
+          <!-- Submenú de Usuarios -->
+          <div v-if="showSubmenu" class="submenu">
+            <button
+              class="submenu-item"
+              :class="{ active: currentSection === 'usuarios' }"
+              @click="selectSection('usuarios')"
+            >
+              • Todos los usuarios
+            </button>
+            <button
+              class="submenu-item"
+              :class="{ active: currentSection === 'cuidadores' }"
+              @click="selectSection('cuidadores')"
+            >
+              • Cuidadores
+            </button>
+            <button
+              class="submenu-item"
+              :class="{ active: currentSection === 'clientes' }"
+              @click="selectSection('clientes')"
+            >
+              • Clientes
+            </button>
+          </div>
+        </div>
+
+        <!-- Servicios -->
+        <button
+          class="nav-item"
+          :class="{ active: currentSection === 'servicios' }"
+          @click="selectSection('servicios')"
+        >
+          <span class="nav-icon">📋</span>
+          <span>Servicios</span>
         </button>
       </nav>
 
@@ -52,6 +97,7 @@
         <Dashboard v-if="currentSection === 'dashboard'" />
         <Usuarios v-if="currentSection === 'usuarios'" />
         <Cuidadores v-if="currentSection === 'cuidadores'" />
+        <Clientes v-if="currentSection === 'clientes'" />
         <Servicios v-if="currentSection === 'servicios'" />
       </section>
     </main>
@@ -62,6 +108,7 @@
 import Dashboard from './components/Dashboard.vue'
 import Usuarios from './components/Usuarios.vue'
 import Cuidadores from './components/Cuidadores.vue'
+import Clientes from './components/Clientes.vue'
 import Servicios from './components/Servicios.vue'
 
 export default {
@@ -70,39 +117,104 @@ export default {
     Dashboard,
     Usuarios,
     Cuidadores,
+    Clientes,
     Servicios
   },
   data() {
     return {
       currentSection: 'dashboard',
       menuOpen: false,
-      menu: [
-        { id: 'dashboard', label: 'Inicio', icon: '⌂' },
-        { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-        { id: 'cuidadores', label: 'Cuidadores', icon: '🤝' },
-        { id: 'servicios', label: 'Servicios', icon: '📋' }
-      ]
+      showSubmenu: true // Controla si el desplegable está abierto o cerrado
     }
   },
   computed: {
+    // Título dinámico simple en la barra superior
     currentTitle() {
-      const item = this.menu.find(item => item.id === this.currentSection)
-      return item ? item.label : 'Inicio'
+      if (this.currentSection === 'usuarios') return 'Usuarios'
+      if (this.currentSection === 'cuidadores') return 'Cuidadores'
+      if (this.currentSection === 'clientes') return 'Clientes'
+      if (this.currentSection === 'servicios') return 'Servicios'
+      return 'Inicio'
     }
   },
   methods: {
-  selectSection(section) {
-    this.currentSection = section
-    localStorage.setItem('activeSection', section) // Lo guardamos
-    this.menuOpen = false
+    selectSection(seccion) {
+      this.currentSection = seccion
+      localStorage.setItem('activeSection', seccion)
+      this.menuOpen = false
+    },
+
+    toggleSubmenu() {
+      if (this.showSubmenu === true) {
+        this.showSubmenu = false
+      } else {
+        this.showSubmenu = true
+      }
+    }
+  },
+  created() {
+    const savedSection = localStorage.getItem('activeSection')
+    if (savedSection) {
+      this.currentSection = savedSection
+    }
   }
-},
-created() {
-  // Cuando la app arranca, revisa si había una sección guardada
-  const savedSection = localStorage.getItem('activeSection')
-  if (savedSection) {
-    this.currentSection = savedSection
-  }
-}
 }
 </script>
+
+<style scoped>
+/* Estilos adicionales simples para integrar el submenú respetando el tema visual */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-parent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.nav-label-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.arrow-icon {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.submenu {
+  display: flex;
+  flex-direction: column;
+  padding-left: 20px;
+  gap: 4px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.submenu-item {
+  background: transparent;
+  border: none;
+  color: #a0aec0;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.submenu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.submenu-item.active {
+  background: #3182ce;
+  color: #ffffff;
+  font-weight: bold;
+}
+</style>

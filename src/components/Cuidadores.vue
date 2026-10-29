@@ -3,9 +3,8 @@
     <div class="page-header">
       <div>
         <h3>Cuidadores</h3>
-        <p>Administrá los cuidadores registrados en Cerca.</p>
+        <p>Listado de cuidadores y los servicios que ofrecen.</p>
       </div>
-      <button class="primary-button" @click="openModal()">+ Agregar cuidador</button>
     </div>
 
     <div class="section-box">
@@ -18,51 +17,32 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Usuario</th>
-              <th>Archivos</th>
+              <th>Cuidador (Usuario)</th>
+              <th>Servicios Ofrecidos</th>
+              <th>Archivo</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="caregiver in filteredCaregivers" :key="caregiver.id">
-              <td>{{ caregiver.id }}</td>
-              <td>{{ caregiver.usuario }}</td>
-              <td>{{ caregiver.archivos }}</td>
+            <tr v-for="cuidador in filteredCuidadores" :key="cuidador.id">
+              <td>{{ cuidador.id }}</td>
+              <td>{{ cuidador.nombreCompleto }}</td>
+              <td>
+                <span v-if="cuidador.servicios.length > 0">
+                  <span v-for="(ser, index) in cuidador.servicios" :key="index" class="badge">
+                    {{ ser }}
+                  </span>
+                </span>
+                <span v-else class="badge-empty">Sin servicio</span>
+              </td>
+              <td>{{ cuidador.archivo ?? 'Sin archivo' }}</td>
               <td class="actions">
-                <button class="edit-button" @click="openModal(caregiver)">Editar</button>
-                <button class="delete-button" @click="deleteCaregiver(caregiver.id)">Eliminar</button>
+                <!-- Usamos id_usuario para borrar todos sus servicios de un solo golpe -->
+                <button class="delete-button" @click="deleteCuidador(cuidador.id_usuario)">Eliminar</button>
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-  
-    <div v-if="showModal" class="modal-background" @click.self="closeModal">
-      <div class="modal">
-        <div class="modal-header">
-          <div>
-            <h3>{{ editingId ? 'Editar cuidador' : 'Nuevo cuidador' }}</h3>
-            <p>Datos del cuidador.</p>
-          </div>
-          <button class="close-button" @click="closeModal">×</button>
-        </div>
-
-        <form @submit.prevent="saveCaregiver">
-          <label>Usuario</label>
-          <input v-model="form.usuario" type="text" required />
-
-          <label>Archivos</label>
-          <input v-model="form.archivos" type="text" placeholder="URL o nombre de archivo" />
-
-          <div class="modal-actions">
-            <button type="button" class="secondary-button" @click="closeModal">Cancelar</button>
-            <button type="submit" class="primary-button">
-              {{ editingId ? 'Guardar cambios' : 'Crear cuidador' }}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   </div>
@@ -76,108 +56,99 @@ export default {
   data() {
     return {
       search: '',
-      showModal: false,
-      editingId: null,
-      caregivers: [], 
-      form: {
-        usuario: '',
-        archivos: ''
-      }
+      cuidadoresList: []
     }
   },
   computed: {
-    filteredCaregivers() {
-      const text = this.search.toLowerCase()
-      return this.caregivers.filter(caregiver =>
-        `${caregiver.usuario} ${caregiver.archivos}`.toLowerCase().includes(text)
-      )
+    filteredCuidadores() {
+      const texto = this.search.toLowerCase()
+      return this.cuidadoresList.filter(c => {
+        const nombreUsuario = c.nombreCompleto ? c.nombreCompleto.toLowerCase() : ''
+        const coincideServicio = c.servicios && c.servicios.some(s => s.toLowerCase().includes(texto))
+        return nombreUsuario.includes(texto) || coincideServicio
+      })
     }
   },
   mounted() {
-    this.fetchCaregivers()
+    this.fetchCuidadores()
   },
   methods: {
-    // SELECT
-    async fetchCaregivers() {
+    async fetchCuidadores() {
       const { data, error } = await supabase
         .from('Cuidador')
-        .select('*')
+        .select(`
+          id,
+          archivo,
+          id_usuario,
+          Usuarios (nombre, apellido),
+          servicios (tipos_servicio)
+        `)
 
       if (error) {
         console.error('Error al obtener cuidadores:', error.message)
       } else {
-        this.caregivers = data
-      }
-    },
+        // Agrupamos por id_usuario para mostrar una sola fila por cuidador
+        const agrupados = {}
 
-    openModal(caregiver = null) {
-      this.showModal = true
-      if (caregiver) {
-        this.editingId = caregiver.id
-        this.form = { ...caregiver }
-      } else {
-        this.editingId = null
-        this.form = { usuario: '', archivos: '' }
-      }
-    },
+        data.forEach(item => {
+          const userId = item.id_usuario
+          const nombreUser = item.Usuarios ? `${item.Usuarios.nombre} ${item.Usuarios.apellido}` : 'Sin nombre'
+          const nombreServicio = item.servicios ? item.servicios.tipos_servicio : null
 
-    closeModal() {
-      this.showModal = false
-    },
-
-    // INSERT o UPDATE
-    async saveCaregiver() {
-      if (this.editingId) {
-        // UPDATE
-        const { error } = await supabase
-          .from('Cuidador')
-          .update({
-            usuario: this.form.usuario,
-            archivos: this.form.archivos
-          })
-          .eq('id', this.editingId)
-
-        if (error) {
-          console.error('Error al actualizar cuidador:', error.message)
-        } else {
-          this.fetchCaregivers()
-        }
-      } else {
-        // INSERT
-        const { error } = await supabase
-          .from('Cuidador')
-          .insert([
-            {
-              usuario: this.form.usuario,
-              archivos: this.form.archivos
+          if (!agrupados[userId]) {
+            agrupados[userId] = {
+              id: item.id,
+              id_usuario: userId,
+              nombreCompleto: nombreUser,
+              archivo: item.archivo,
+              servicios: []
             }
-          ])
+          }
 
-        if (error) {
-          console.error('Error al crear cuidador:', error.message)
-        } else {
-          this.fetchCaregivers()
-        }
+          if (nombreServicio && !agrupados[userId].servicios.includes(nombreServicio)) {
+            agrupados[userId].servicios.push(nombreServicio)
+          }
+        })
+
+        this.cuidadoresList = Object.values(agrupados)
       }
-
-      this.closeModal()
     },
 
-    // DELETE
-    async deleteCaregiver(id) {
-      if (window.confirm('¿Seguro que querés eliminar este cuidador?')) {
+    async deleteCuidador(idUsuario) {
+      const confirmar = window.confirm('¿Seguro que querés eliminar este cuidador y todos sus servicios asociados?')
+      if (confirmar) {
+        // Borramos directamente todas las filas de la tabla Cuidador que coincidan con este id_usuario
         const { error } = await supabase
           .from('Cuidador')
           .delete()
-          .eq('id', id)
+          .eq('id_usuario', idUsuario)
 
         if (error) {
-          console.error('Error al eliminar cuidador:', error.message)
+          alert('Error al eliminar: ' + error.message)
         } else {
-          this.fetchCaregivers()
+          this.fetchCuidadores()
         }
       }
     }
   }
 }
 </script>
+
+<style scoped>
+.badge {
+  background: #edf2f7;
+  color: #2d3748;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.badge-empty {
+  color: #a0aec0;
+  font-size: 12px;
+  font-style: italic;
+}
+</style>
